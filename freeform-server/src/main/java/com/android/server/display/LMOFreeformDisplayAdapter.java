@@ -155,6 +155,9 @@ public class LMOFreeformDisplayAdapter extends DisplayAdapter {
         protected final IBinder mAppToken;
 
         private int mPendingChanges;
+        // Follows the display group's power state (requestDisplayStateLocked). Starts on:
+        // a freeform window is only opened from an awake screen.
+        private int mDisplayState = Display.STATE_ON;
 
         FreeformDisplayDevice(IBinder displayToken, String uniqueId,
                               int width, int height, int density,
@@ -203,6 +206,28 @@ public class LMOFreeformDisplayAdapter extends DisplayAdapter {
             if (binderAlive) {
                 mCallback.dispatchDisplayStopped();
             }
+        }
+
+        @Override
+        public Runnable requestDisplayStateLocked(int state, float brightnessState,
+                float sdrBrightnessState, DisplayOffloadSessionImpl displayOffloadSession) {
+            // As VirtualDisplayAdapter does. Without this the display kept reporting
+            // STATE_ON while the phone slept, and anything that checks whether any display
+            // is on (telephony's DeviceStateMonitor) kept the modem in its screen-on mode.
+            if (state != mDisplayState) {
+                Slog.d(TAG, "Changing state of freeform display " + mName + " from "
+                        + Display.stateToString(mDisplayState) + " to "
+                        + Display.stateToString(state));
+                mDisplayState = state;
+                mInfo = null;
+                sendDisplayDeviceEventLocked(this, DISPLAY_DEVICE_EVENT_CHANGED);
+                if (state == Display.STATE_OFF) {
+                    mCallback.dispatchDisplayPaused();
+                } else {
+                    mCallback.dispatchDisplayResumed();
+                }
+            }
+            return null;
         }
 
         @Override
@@ -266,6 +291,7 @@ public class LMOFreeformDisplayAdapter extends DisplayAdapter {
                 }
                 mInfo.type = Display.TYPE_OVERLAY;
                 mInfo.touch = DisplayDeviceInfo.TOUCH_VIRTUAL;
+                mInfo.state = mDisplayState;
                 // The display is trusted since it is created by system.
                 mInfo.flags |= FLAG_TRUSTED;
                 mInfo.displayShape = DisplayShape.createDefaultDisplayShape(mInfo.width, mInfo.height, false);
