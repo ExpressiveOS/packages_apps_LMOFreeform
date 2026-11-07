@@ -17,7 +17,8 @@
 
         <receiver
             android:name=".receiver.StartFreeformReceiver"
-            android:exported="true" >
+            android:exported="true"
+            android:permission="com.libremobileos.permission.START_FREEFORM" >
             <intent-filter>
                 <action android:name="com.libremobileos.freeform.START_FREEFORM" />
             </intent-filter>
