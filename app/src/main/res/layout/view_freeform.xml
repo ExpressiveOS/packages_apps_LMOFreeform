@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2026 The ExpressiveOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="16dp"
+    android:foreground="@drawable/bg_freeform_frame_border"
+    app:cardCornerRadius="@dimen/freeform_corner_radius"
+    app:cardElevation="10dp"
     app:cardBackgroundColor="@color/color_surface">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -16,67 +22,103 @@
             android:layout_width="0dp"
             android:layout_height="@dimen/top_bar_height"
             android:background="@drawable/color_background"
+            android:paddingStart="12dp"
+            android:paddingEnd="10dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
+
             <ImageView
                 android:id="@+id/appIcon"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginStart="6dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:scaleType="fitCenter"
                 android:tag="appIcon"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
             <TextView
                 android:id="@+id/packageName"
                 android:tag="packageName"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
+                android:layout_marginStart="6dp"
                 android:layout_marginEnd="6dp"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:fontFamily="google-sans-flex"
+                android:textStyle="bold"
                 android:textSize="11sp"
-                android:textColor="@color/color_text"
+                android:textColor="@color/color_text_secondary"
                 app:layout_constraintStart_toEndOf="@id/appIcon"
-                app:layout_constraintEnd_toStartOf="@id/pinView"
+                app:layout_constraintEnd_toStartOf="@id/topDragHandle"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
+            <View
+                android:id="@+id/topDragHandle"
+                android:tag="topDragHandle"
+                android:layout_width="@dimen/drag_handle_width"
+                android:layout_height="@dimen/drag_handle_height"
+                android:alpha="0.88"
+                android:background="@drawable/bg_drag_handle_pill"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
             <View
                 android:id="@+id/spacer"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:tag="spacer"
-                app:layout_constraintStart_toEndOf="@id/packageName"
+                app:layout_constraintStart_toEndOf="@id/topDragHandle"
                 app:layout_constraintEnd_toStartOf="@id/pinView"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
             <ImageView
                 android:id="@+id/pinView"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
+                android:layout_width="28dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="4dp"
+                android:padding="5dp"
+                android:background="@drawable/bg_window_btn_pill"
+                android:clickable="true"
+                android:focusable="true"
+                android:scaleType="fitCenter"
                 android:tag="pinView"
                 android:src="@drawable/ic_pin"
                 app:layout_constraintEnd_toStartOf="@id/maximizeView"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
             <ImageView
                 android:id="@+id/maximizeView"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
+                android:layout_width="28dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="4dp"
+                android:padding="5dp"
+                android:background="@drawable/bg_window_btn_pill"
+                android:clickable="true"
+                android:focusable="true"
+                android:scaleType="fitCenter"
                 android:tag="maximizeView"
                 android:src="@drawable/ic_maximize"
                 app:layout_constraintEnd_toStartOf="@id/minimizeView"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent" />
+
             <ImageView
                 android:id="@+id/minimizeView"
-                android:layout_width="24dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
+                android:layout_width="28dp"
+                android:layout_height="24dp"
+                android:padding="5dp"
+                android:background="@drawable/bg_window_btn_close_pill"
+                android:clickable="true"
+                android:focusable="true"
+                android:scaleType="fitCenter"
                 android:tag="minimizeView"
                 android:src="@drawable/ic_minimize"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -96,20 +138,30 @@
 
         <FrameLayout
             android:id="@+id/veilView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@color/color_veil_surface"
             android:tag="veilView"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@+id/bottomBar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/topBarView" >
-            <ImageView
-                android:id="@+id/veilAppIcon"
-                android:tag="veilAppIcon"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_centerInParent="true"/>
+            app:layout_constraintTop_toBottomOf="@+id/topBarView">
+
+            <FrameLayout
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_veil_icon_container">
+
+                <ImageView
+                    android:id="@+id/veilAppIcon"
+                    android:tag="veilAppIcon"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter" />
+            </FrameLayout>
         </FrameLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -135,7 +187,7 @@
                 app:layout_constraintTop_toTopOf="parent">
 
                 <View
-                    android:layout_width="4dp"
+                    android:layout_width="14dp"
                     android:layout_height="4dp"
                     android:background="@drawable/bar_corners_bg"
                     android:tag="leftScale" />
@@ -143,8 +195,11 @@
 
             <LinearLayout
                 android:id="@+id/arrowBack"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
+                android:layout_width="48dp"
+                android:layout_height="22dp"
+                android:background="@drawable/bg_bottom_back_pill"
+                android:clickable="true"
+                android:focusable="true"
                 android:gravity="center"
                 android:orientation="horizontal"
                 android:tag="arrowBack"
@@ -154,8 +209,8 @@
                 app:layout_constraintTop_toTopOf="parent">
 
                 <View
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
                     android:background="@drawable/ic_arrow_back" />
             </LinearLayout>
 
@@ -171,7 +226,7 @@
                 app:layout_constraintTop_toTopOf="parent">
 
                 <View
-                    android:layout_width="4dp"
+                    android:layout_width="14dp"
                     android:layout_height="4dp"
                     android:background="@drawable/bar_corners_bg"
                     android:tag="rightScale" />
@@ -182,7 +237,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.33"
+                app:layout_constraintGuide_percent="0.30"
                 android:tag="guideline2" />
 
             <androidx.constraintlayout.widget.Guideline
@@ -190,7 +245,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.67"
+                app:layout_constraintGuide_percent="0.70"
                 android:tag="guideline3" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>

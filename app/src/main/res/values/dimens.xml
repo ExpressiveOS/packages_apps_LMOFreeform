@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="top_bar_height">28dp</dimen>
-    <dimen name="bottom_bar_height">28dp</dimen>
-    <dimen name="scale_width">28dp</dimen>
+    <dimen name="freeform_corner_radius">28dp</dimen>
+    <dimen name="top_bar_height">38dp</dimen>
+    <dimen name="bottom_bar_height">30dp</dimen>
+    <dimen name="scale_width">40dp</dimen>
+    <dimen name="drag_handle_width">36dp</dimen>
+    <dimen name="drag_handle_height">5dp</dimen>
 </resources>

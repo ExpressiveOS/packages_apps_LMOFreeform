@@ -1,32 +1,78 @@
 package com.libremobileos.freeform.server.ui
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
-import android.os.Build
 import android.util.Slog
 import android.view.Display
 import android.view.GestureDetector.SimpleOnGestureListener
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.OvershootInterpolator
 import com.libremobileos.freeform.server.LMOFreeformServiceHolder
 import com.libremobileos.freeform.server.SystemServiceHolder
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+private val HANDLE_SPRING_INTERPOLATOR = OvershootInterpolator(1.6f)
+
+private fun morphIndicator(
+    target: View?,
+    active: Boolean,
+    activeScaleX: Float = 1.35f,
+    activeScaleY: Float = 1.25f,
+    restingAlpha: Float = 0.88f,
+) {
+    val view = target ?: return
+    view.animate().cancel()
+    val targetScaleX = if (active) activeScaleX else 1f
+    val targetScaleY = if (active) activeScaleY else 1f
+    val targetAlpha = if (active) 1f else restingAlpha
+    if (!ValueAnimator.areAnimatorsEnabled()) {
+        view.scaleX = targetScaleX
+        view.scaleY = targetScaleY
+        view.alpha = targetAlpha
+    } else {
+        view.animate()
+            .scaleX(targetScaleX)
+            .scaleY(targetScaleY)
+            .alpha(targetAlpha)
+            .setDuration(if (active) 160L else 220L)
+            .setInterpolator(HANDLE_SPRING_INTERPOLATOR)
+            .start()
+    }
+}
+
 class MoveTouchListener(
     private val window: FreeformWindow
-) : View.OnTouchListener{
+) : View.OnTouchListener {
     private var startX = 0.0f
     private var startY = 0.0f
+    private var initialRawX = 0.0f
+    private var initialRawY = 0.0f
+    private var hasDragged = false
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         val layout = window.freeformLayout ?: return true
-        
-        when (event.action) {
+
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 startX = event.rawX
                 startY = event.rawY
+                initialRawX = event.rawX
+                initialRawY = event.rawY
+                hasDragged = false
+                v.performHapticFeedback(HapticFeedbackConstants.GESTURE_START)
+                morphIndicator(window.topDragHandleView, active = true)
             }
             MotionEvent.ACTION_MOVE -> {
+                if (!hasDragged &&
+                    (abs(event.rawX - initialRawX) > 6f || abs(event.rawY - initialRawY) > 6f)
+                ) {
+                    hasDragged = true
+                }
                 window.windowManager.updateViewLayout(layout, window.windowParams.apply {
                     x = (x + event.rawX - startX).roundToInt()
                     y = (y + event.rawY - startY).roundToInt()
@@ -34,7 +80,11 @@ class MoveTouchListener(
                 startX = event.rawX
                 startY = event.rawY
             }
-            MotionEvent.ACTION_UP -> {
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                morphIndicator(window.topDragHandleView, active = false)
+                if (hasDragged && event.actionMasked == MotionEvent.ACTION_UP) {
+                    v.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                }
                 window.makeSureFreeformInScreen()
             }
         }
@@ -44,36 +94,43 @@ class MoveTouchListener(
 
 class LeftViewClickListener(private val window: FreeformWindow) : View.OnClickListener {
     override fun onClick(v: View) {
+        v.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
         window.close()
     }
-
 }
 
 /**
- * maximize freeform screen
+ * Maximize freeform window to full screen display
  */
-class MaximizeClickListener(private val window: FreeformWindow): View.OnClickListener {
+class MaximizeClickListener(private val window: FreeformWindow) : View.OnClickListener {
     companion object {
         private const val TAG = "LMOFreeform/TouchListener"
     }
+
     override fun onClick(v: View) {
+        v.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
         if (null != window.freeformTaskStackListener) {
             if (window.freeformTaskStackListener!!.taskId == -1) {
                 Slog.e(TAG, "taskId is -1, can`t move")
                 return
             }
-            runCatching { SystemServiceHolder.activityTaskManager.moveRootTaskToDisplay(window.freeformTaskStackListener!!.taskId, Display.DEFAULT_DISPLAY) }
+            runCatching {
+                SystemServiceHolder.activityTaskManager.moveRootTaskToDisplay(
+                    window.freeformTaskStackListener!!.taskId,
+                    Display.DEFAULT_DISPLAY
+                )
+            }
         }
     }
 }
 
 /**
- * Pin freeform
+ * Pin / minimize freeform window into floating hang-up mini-card
  */
-class PinClickListener(private val window: FreeformWindow): View.OnClickListener {
+class PinClickListener(private val window: FreeformWindow) : View.OnClickListener {
     override fun onClick(v: View) {
+        v.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
         window.handler.post {
-            // hangup
             window.handleHangUp()
         }
     }
@@ -81,23 +138,35 @@ class PinClickListener(private val window: FreeformWindow): View.OnClickListener
 
 class RightViewClickListener(private val displayId: Int) : View.OnClickListener {
     override fun onClick(v: View) {
+        v.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         LMOFreeformServiceHolder.back(displayId)
     }
 }
 
-class ScaleTouchListener(private val window: FreeformWindow, private val isRight: Boolean = true): View.OnTouchListener {
+class ScaleTouchListener(
+    private val window: FreeformWindow,
+    private val isRight: Boolean = true
+) : View.OnTouchListener {
     private var startX = 0.0f
     private var startY = 0.0f
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         val rootView = window.freeformRootView ?: return true
         val veilView = window.veilView ?: return true
         val freeformView = window.freeformView ?: return true
-        
-        when (event.action) {
+        val gripIndicator = if (isRight) {
+            window.rightScaleIndicatorView
+        } else {
+            window.leftScaleIndicatorView
+        }
+
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 startX = event.rawX
                 startY = event.rawY
+                v.performHapticFeedback(HapticFeedbackConstants.GESTURE_START)
+                morphIndicator(gripIndicator, active = true, activeScaleX = 1.45f, activeScaleY = 1.3f, restingAlpha = 1f)
                 rootView.visibility = View.INVISIBLE
                 veilView.visibility = View.VISIBLE
             }
@@ -115,7 +184,9 @@ class ScaleTouchListener(private val window: FreeformWindow, private val isRight
                 startX = event.rawX
                 startY = event.rawY
             }
-            MotionEvent.ACTION_UP -> {
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                morphIndicator(gripIndicator, active = false, restingAlpha = 1f)
+                v.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                 freeformView.surfaceTexture?.let { surfaceTexture ->
                     window.freeformConfig.width = rootView.layoutParams.width
                     window.freeformConfig.height = rootView.layoutParams.height
@@ -127,12 +198,15 @@ class ScaleTouchListener(private val window: FreeformWindow, private val isRight
                         window.freeformConfig.freeformHeight,
                         window.freeformConfig.densityDpi
                     )
-                    surfaceTexture.setDefaultBufferSize(window.freeformConfig.freeformWidth, window.freeformConfig.freeformHeight)
-                    // Delay the unveiling until after the scaling is complete
+                    surfaceTexture.setDefaultBufferSize(
+                        window.freeformConfig.freeformWidth,
+                        window.freeformConfig.freeformHeight
+                    )
+                    val unveilDelay = if (ValueAnimator.areAnimatorsEnabled()) 220L else 0L
                     window.handler.postDelayed({
                         rootView.visibility = View.VISIBLE
                         veilView.visibility = View.GONE
-                    }, 250)
+                    }, unveilDelay)
                 }
             }
         }
@@ -143,6 +217,7 @@ class ScaleTouchListener(private val window: FreeformWindow, private val isRight
 class HangUpGestureListener(private val window: FreeformWindow) : SimpleOnGestureListener() {
     private var startX = 0
     private var startY = 0
+
     override fun onDown(e: MotionEvent): Boolean {
         startX = window.windowParams.x
         startY = window.windowParams.y
@@ -167,11 +242,12 @@ class HangUpGestureListener(private val window: FreeformWindow) : SimpleOnGestur
         val e1RawX = e1?.rawX ?: 0f
         val e1RawY = e1?.rawY ?: 0f
 
-        if (!isValidCoordinate(e1RawX) || !isValidCoordinate(e1RawY) 
-                || !isValidCoordinate(e2.rawX) || !isValidCoordinate(e2.rawY)) {
+        if (!isValidCoordinate(e1RawX) || !isValidCoordinate(e1RawY) ||
+            !isValidCoordinate(e2.rawX) || !isValidCoordinate(e2.rawY)
+        ) {
             return true
         }
-        
+
         val newX = (startX + e2.rawX - e1RawX).roundToInt()
         val newY = (startY + e2.rawY - e1RawY).roundToInt()
 
@@ -183,18 +259,18 @@ class HangUpGestureListener(private val window: FreeformWindow) : SimpleOnGestur
                     y = newY
                 })
             }
-        } catch (e: Exception) {}
+        } catch (_: Exception) {}
         return true
     }
 
     fun isValidMotionEvent(event: MotionEvent?): Boolean {
         return event != null &&
-                !event.rawX.isNaN() &&
-                !event.rawY.isNaN() &&
-                event.rawX.isFinite() &&
-                event.rawY.isFinite()
+            !event.rawX.isNaN() &&
+            !event.rawY.isNaN() &&
+            event.rawX.isFinite() &&
+            event.rawY.isFinite()
     }
-    
+
     fun isValidCoordinate(coordinate: Float): Boolean {
         return !coordinate.isNaN() && coordinate.isFinite()
     }

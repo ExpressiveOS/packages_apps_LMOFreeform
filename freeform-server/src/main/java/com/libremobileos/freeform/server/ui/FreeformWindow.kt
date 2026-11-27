@@ -11,6 +11,7 @@ import android.util.Slog
 import android.view.Display
 import android.view.DisplayInfo
 import android.graphics.Matrix
+import android.view.HapticFeedbackConstants
 import android.view.InputDevice
 import android.view.GestureDetector
 import android.view.IRotationWatcher
@@ -51,6 +52,9 @@ class FreeformWindow(
     var freeformView: TextureView? = null
     private var topBarView: View? = null
     private var bottomBarView: View? = null
+    var topDragHandleView: View? = null
+    var leftScaleIndicatorView: View? = null
+    var rightScaleIndicatorView: View? = null
     var veilView: ViewGroup? = null
     private var displayId = Display.INVALID_DISPLAY
     var defaultDisplayWidth = context.resources.displayMetrics.widthPixels
@@ -289,6 +293,9 @@ class FreeformWindow(
         veilView = resourceHolder.getLayoutChildViewByTag<FrameLayout>(tmpFreeformLayout, "veilView") ?: return false
         topBarView = resourceHolder.getLayoutChildViewByTag(tmpFreeformLayout, "topBarView") ?: return false
         bottomBarView = resourceHolder.getLayoutChildViewByTag(tmpFreeformLayout, "bottomBarView") ?: return false
+        topDragHandleView = tmpFreeformLayout.findViewWithTag("topDragHandle")
+        leftScaleIndicatorView = tmpFreeformLayout.findViewWithTag("leftScale")
+        rightScaleIndicatorView = tmpFreeformLayout.findViewWithTag("rightScale")
         val moveTouchListener = MoveTouchListener(this)
         topBarView?.setOnTouchListener(moveTouchListener)
         bottomBarView?.setOnTouchListener(moveTouchListener)
@@ -363,6 +370,7 @@ class FreeformWindow(
         val topBar = topBarView ?: return
         val bottomBar = bottomBarView ?: return
         val view = freeformView ?: return
+        layout.performHapticFeedback(HapticFeedbackConstants.GESTURE_END)
         
         if (freeformConfig.isHangUp) {
             windowParams.apply {
