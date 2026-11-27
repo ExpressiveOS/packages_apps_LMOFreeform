@@ -1,149 +1,222 @@
 /*
  * SPDX-FileCopyrightText: 2026 kenway214
+ * SPDX-FileCopyrightText: 2026 The ExpressiveOS Project
  * SPDX-License-Identifier: Apache-2.0
  */
- 
+
 package com.libremobileos.sidebar.ui.sidebar
 
-import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.ViewSidebar
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.android.settingslib.spa.framework.compose.rememberDrawablePainter
-import com.android.settingslib.spa.framework.theme.SettingsDimension
-import com.android.settingslib.spa.widget.preference.MainSwitchPreference
-import com.android.settingslib.spa.widget.preference.Preference
-import com.android.settingslib.spa.widget.preference.PreferenceModel
-import com.android.settingslib.spa.widget.preference.SwitchPreference
-import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
-import com.android.settingslib.spa.widget.scaffold.SettingsScaffold
-import com.android.settingslib.spa.widget.ui.Category
+import com.android.axion.compose.expressive.rememberExpressiveHaptics
+import com.android.axion.compose.preferences.ClickablePreference
+import com.android.axion.compose.preferences.MainSwitchPreference
+import com.android.axion.compose.preferences.PreferenceGroup
+import com.android.axion.compose.preferences.PreferenceTokens
+import com.android.axion.compose.preferences.SwitchPreference
+import com.android.axion.compose.preferences.preferencePosition
+import com.android.axion.compose.scaffold.AxionScaffold
 import com.libremobileos.sidebar.R
 import com.libremobileos.sidebar.bean.SidebarAppInfo
 import com.libremobileos.sidebar.service.SidebarMonitorService
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SidebarSettingsPage(
-    viewModel: SidebarSettingsViewModel
+    viewModel: SidebarSettingsViewModel,
+    onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    var mainChecked = rememberSaveable { mutableStateOf(viewModel.getSidebarEnabled()) }
+    val haptics = rememberExpressiveHaptics()
+    var mainChecked by rememberSaveable { mutableStateOf(viewModel.getSidebarEnabled()) }
+    var autoEnableChecked by rememberSaveable {
+        mutableStateOf(viewModel.getAutoEnableSelectedAppsEnabled())
+    }
+    var predictedChecked by rememberSaveable {
+        mutableStateOf(viewModel.getPredictedAppsEnabled())
+    }
+    val sidebarApps by viewModel.appListFlow.collectAsState()
 
-    SettingsScaffold(
+    val openCustomization = {
+        haptics.performConfirm()
+        context.startActivity(Intent(context, SidebarCustomizationActivity::class.java))
+    }
+
+    AxionScaffold(
         title = stringResource(R.string.sidebar_label),
+        onBackClick = onBack,
+        collapsedByDefault = false,
         actions = {
-            IconButton(onClick = {
-                val intent = Intent(context, SidebarCustomizationActivity::class.java)
-                context.startActivity(intent)
-            }) {
+            FilledTonalIconButton(
+                onClick = openCustomization,
+                shape = IconButtonDefaults.smallRoundShape,
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = stringResource(R.string.sidebar_customization_title)
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = stringResource(R.string.sidebar_customization_title),
                 )
             }
-        }
+        },
     ) { paddingValues ->
-        Column(
-            modifier = Modifier.padding(paddingValues)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(PreferenceTokens.ItemSpacing),
         ) {
-            MainSwitchPreference(object : SwitchPreferenceModel {
-                override val title = stringResource(R.string.enable_sideline)
-                override val checked = { mainChecked.value }
-                override val changeable = { viewModel.isEnabled }
-                override val onCheckedChange: (Boolean) -> Unit = {
-                    mainChecked.value = it
-                    viewModel.setSidebarEnabled(it)
-                    val intent = Intent(context, SidebarMonitorService::class.java)
-                    if (it || viewModel.getAutoEnableSelectedAppsEnabled()) {
-                        context.startService(intent)
-                    } else {
-                        context.stopService(intent)
-                    }
-                }
-            })
-            
-            val autoEnableChecked = remember { mutableStateOf(viewModel.getAutoEnableSelectedAppsEnabled()) }
-            val autoEnableSummary = stringResource(R.string.sidebar_auto_enable_selected_apps_summary)
-            SwitchPreference(
-                model = object : SwitchPreferenceModel {
-                    override val title = stringResource(R.string.sidebar_auto_enable_selected_apps)
-                    override val summary = { autoEnableSummary }
-                    override val checked = { autoEnableChecked.value }
-                    override val changeable = { viewModel.isEnabled }
-                    override val onCheckedChange: (Boolean) -> Unit = {
-                        autoEnableChecked.value = it
-                        viewModel.setAutoEnableSelectedAppsEnabled(it)
+            item(key = "main_switch") {
+                MainSwitchPreference(
+                    title = stringResource(R.string.enable_sideline),
+                    summary = stringResource(R.string.sidebar_summary),
+                    checked = mainChecked,
+                    enabled = viewModel.isEnabled,
+                    onCheckedChange = { enabled ->
+                        mainChecked = enabled
+                        viewModel.setSidebarEnabled(enabled)
                         val intent = Intent(context, SidebarMonitorService::class.java)
-                        if (it || mainChecked.value) {
+                        if (enabled || autoEnableChecked) {
                             context.startService(intent)
                         } else {
                             context.stopService(intent)
                         }
+                    },
+                )
+            }
+
+            item(key = "behavior_group") {
+                PreferenceGroup(
+                    modifier = Modifier.padding(bottom = 8.dp),
+                ) {
+                    item {
+                        ClickablePreference(
+                            title = stringResource(R.string.sidebar_customization_title),
+                            summary = stringResource(R.string.sidebar_section_layout),
+                            icon = Icons.Rounded.Tune,
+                            enabled = viewModel.isEnabled,
+                            onClick = openCustomization,
+                        )
+                    }
+
+                    item {
+                        SwitchPreference(
+                            title = stringResource(R.string.sidebar_auto_enable_selected_apps),
+                            summary = stringResource(R.string.sidebar_auto_enable_selected_apps_summary),
+                            icon = Icons.Rounded.ViewSidebar,
+                            checked = autoEnableChecked,
+                            enabled = viewModel.isEnabled,
+                            onCheckedChange = { enabled ->
+                                autoEnableChecked = enabled
+                                viewModel.setAutoEnableSelectedAppsEnabled(enabled)
+                                val intent = Intent(context, SidebarMonitorService::class.java)
+                                if (enabled || mainChecked) {
+                                    context.startService(intent)
+                                } else {
+                                    context.stopService(intent)
+                                }
+                            },
+                        )
+                    }
+
+                    if (autoEnableChecked) {
+                        item {
+                            ClickablePreference(
+                                title = stringResource(R.string.sidebar_per_app_config),
+                                summary = stringResource(R.string.sidebar_per_app_config_summary),
+                                icon = Icons.Rounded.Apps,
+                                enabled = viewModel.isEnabled,
+                                onClick = {
+                                    haptics.performConfirm()
+                                    context.startActivity(
+                                        Intent(context, SidebarPerAppConfigActivity::class.java)
+                                    )
+                                },
+                            )
+                        }
+                    }
+
+                    if (mainChecked) {
+                        item {
+                            SwitchPreference(
+                                title = stringResource(R.string.sidebar_predicted_apps),
+                                summary = stringResource(R.string.sidebar_predicted_apps_summary),
+                                icon = Icons.Rounded.AutoAwesome,
+                                checked = predictedChecked,
+                                enabled = viewModel.isEnabled,
+                                onCheckedChange = { enabled ->
+                                    predictedChecked = enabled
+                                    viewModel.setPredictedAppsEnabled(enabled)
+                                },
+                            )
+                        }
                     }
                 }
-            )
-            
-            if (autoEnableChecked.value) {
-                val perAppConfigSummary = stringResource(R.string.sidebar_per_app_config_summary)
-                Preference(
-                    model = object : PreferenceModel {
-                        override val title = stringResource(R.string.sidebar_per_app_config)
-                        override val summary = { perAppConfigSummary }
-                        override val onClick = {
-                            val intent = Intent(context, SidebarPerAppConfigActivity::class.java)
-                            context.startActivity(intent)
-                        }
-                    }
-                )
             }
-            
-            if (mainChecked.value) {
-                SidebarSettingSwitch(
-                    title = stringResource(R.string.sidebar_predicted_apps),
-                    summary = stringResource(R.string.sidebar_predicted_apps_summary),
-                    isChecked = viewModel.getPredictedAppsEnabled(),
-                    onCheckedChange = { viewModel.setPredictedAppsEnabled(it) }
-                )
-            }
-            
-            if (mainChecked.value) {
-                SidebarAppList(viewModel)
-            }
-        }
-    }
-}
 
-@Composable
-fun SidebarAppList(
-    viewModel: SidebarSettingsViewModel
-) {
-    val sidebarApps by viewModel.appListFlow.collectAsState()
-    Category(
-        title = stringResource(R.string.sidebar_app_setting_label)
-    ) {
-        LazyColumn {
-            items(sidebarApps) { appInfo ->
-                SidebarAppListItem(
-                    appInfo = appInfo,
-                    onCheckedChange = { isChecked ->
-                        if (isChecked) {
-                            viewModel.addSidebarApp(appInfo)
-                        } else {
-                            viewModel.deleteSidebarApp(appInfo)
-                        }
-                    }
-                )
+            if (mainChecked && sidebarApps.isNotEmpty()) {
+                item(key = "pinned_apps_header") {
+                    Text(
+                        text = stringResource(R.string.sidebar_app_setting_label),
+                        style = MaterialTheme.typography.titleSmallEmphasized,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = PreferenceTokens.CategoryPaddingStart,
+                                top = PreferenceTokens.CategoryPaddingTop,
+                                bottom = PreferenceTokens.CategoryPaddingBottom,
+                            ),
+                    )
+                }
+
+                itemsIndexed(
+                    items = sidebarApps,
+                    key = { _, app -> "${app.packageName}/${app.activityName}/${app.userId}" },
+                ) { index, appInfo ->
+                    SidebarAppListItem(
+                        appInfo = appInfo,
+                        position = preferencePosition(index, sidebarApps.size),
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) {
+                                viewModel.addSidebarApp(appInfo)
+                            } else {
+                                viewModel.deleteSidebarApp(appInfo)
+                            }
+                        },
+                    )
+                }
             }
         }
     }
@@ -152,45 +225,24 @@ fun SidebarAppList(
 @Composable
 fun SidebarAppListItem(
     appInfo: SidebarAppInfo,
-    onCheckedChange: (Boolean) -> Unit
+    position: com.android.axion.compose.preferences.PreferencePosition =
+        com.android.axion.compose.preferences.PreferencePosition.Single,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    var appChecked = rememberSaveable { mutableStateOf(appInfo.isSidebarApp) }
-    SwitchPreference(
-        model = object : SwitchPreferenceModel {
-            override val title = appInfo.label
-            override val icon = @Composable {
-                Image(
-                    painter = rememberDrawablePainter(appInfo.icon),
-                    contentDescription = appInfo.label,
-                    modifier = Modifier.size(SettingsDimension.appIconItemSize)
-                )
-            }
-            override val checked = { appChecked.value }
-            override val onCheckedChange: (Boolean) -> Unit = {
-                appChecked.value = it
-                onCheckedChange(it)
-            }
-        },
-    )
-}
+    var appChecked by rememberSaveable(appInfo.packageName, appInfo.activityName, appInfo.userId) {
+        mutableStateOf(appInfo.isSidebarApp)
+    }
 
-@Composable
-fun SidebarSettingSwitch(
-    title: String,
-    summary: String?,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    var myChecked = rememberSaveable { mutableStateOf(isChecked) }
     SwitchPreference(
-        model = object : SwitchPreferenceModel {
-            override val title = title
-            override val summary = { summary ?: "" }
-            override val checked = { myChecked.value }
-            override val onCheckedChange: (Boolean) -> Unit = {
-                myChecked.value = it
-                onCheckedChange(it)
-            }
+        title = appInfo.label,
+        summary = appInfo.packageName,
+        iconDrawable = appInfo.icon,
+        checked = appChecked,
+        position = position,
+        onCheckedChange = { next ->
+            appChecked = next
+            appInfo.isSidebarApp = next
+            onCheckedChange(next)
         },
     )
 }

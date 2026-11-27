@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
@@ -11,11 +12,7 @@ import com.libremobileos.sidebar.bean.AppInfo
 import com.libremobileos.sidebar.ui.theme.SidebarTheme
 import com.libremobileos.sidebar.utils.Logger
 
-/**
- * @author KindBrave
- * @since 2023/10/25
- */
-class AllAppActivity: ComponentActivity() {
+class AllAppActivity : ComponentActivity() {
     private val logger = Logger(TAG)
     private val viewModel: AllAppViewModel by viewModels { AllAppViewModel.Factory }
 
@@ -27,6 +24,7 @@ class AllAppActivity: ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         logger.d("onCreate")
 
         setContent {
@@ -34,7 +32,8 @@ class AllAppActivity: ComponentActivity() {
                 AllAppGridView(
                     viewModel = viewModel,
                     onClick = ::onClick,
-                    modifier = Modifier.fillMaxSize()
+                    onBack = { finish() },
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.libremobileos.sidebar.service
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.IActivityManager
 import android.app.Service
@@ -16,9 +17,12 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.ServiceManager
 import android.os.UserHandle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
+import android.view.animation.OvershootInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import com.android.internal.policy.SystemBarUtils
@@ -255,6 +259,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     override fun showSidebar() {
         logger.d("showSidebar")
+        sideLineView.performHapticFeedback(HapticFeedbackConstants.GESTURE_END)
         sidebarView.showView()
         isShowingSidebar = true
         animateHideSideline()
@@ -269,6 +274,12 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     override fun beginMoveSideline() {
         logger.d("beginMoveSideline")
+        sideLineView.performHapticFeedback(HapticFeedbackConstants.GESTURE_START)
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            sideLineView.animate().scaleY(1.08f).setDuration(150).start()
+        } else {
+            sideLineView.scaleY = 1.08f
+        }
         layoutParams.apply {
             width = SIDELINE_MOVE_WIDTH
         }
@@ -293,6 +304,14 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     override fun endMoveSideline() {
         logger.d("endMoveSideline")
+        if (layoutParams.width == SIDELINE_MOVE_WIDTH) {
+            sideLineView.performHapticFeedback(HapticFeedbackConstants.GESTURE_END)
+        }
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            sideLineView.animate().scaleY(1f).setDuration(180).start()
+        } else {
+            sideLineView.scaleY = 1f
+        }
         layoutParams.apply {
             width = getSliderWidth()
             y = constrainY(y)
@@ -469,12 +488,31 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     private fun animateHideSideline() {
         logger.d("animateHideSideline")
-        sideLineView.animate().translationX(sidelinePositionX * 1.0f * getSliderWidth()).setDuration(300).start()
+        val targetTranslation = sidelinePositionX * 1.0f * getSliderWidth()
+        sideLineView.animate().cancel()
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            sideLineView.translationX = targetTranslation
+        } else {
+            sideLineView.animate()
+                .translationX(targetTranslation)
+                .setDuration(220)
+                .setInterpolator(PathInterpolator(0.2f, 0f, 0f, 1f))
+                .start()
+        }
     }
 
     private fun animateShowSideline() {
         logger.d("animateShowSideline")
-        sideLineView.animate().translationX(0f).setDuration(300).start()
+        sideLineView.animate().cancel()
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            sideLineView.translationX = 0f
+        } else {
+            sideLineView.animate()
+                .translationX(0f)
+                .setDuration(280)
+                .setInterpolator(OvershootInterpolator(1.1f))
+                .start()
+        }
     }
 
     private fun setIntSp(name: String, value: Int) {
