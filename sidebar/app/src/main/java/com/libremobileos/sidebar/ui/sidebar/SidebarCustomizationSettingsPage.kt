@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -52,7 +56,6 @@ import com.android.axion.compose.preferences.preferenceShape
 import com.android.axion.compose.scaffold.AxionScaffold
 import com.libremobileos.sidebar.R
 import com.libremobileos.sidebar.service.SidebarService
-import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -61,6 +64,9 @@ fun SidebarCustomizationSettingsPage(
     onBack: () -> Unit = {},
     onSettingChanged: () -> Unit = {},
 ) {
+    val layoutDirection = LocalLayoutDirection.current
+    val density = LocalDensity.current.density
+
     var transparency by remember {
         mutableFloatStateOf(sharedPrefs.getFloat(SidebarService.SLIDER_TRANSPARENCY, 0.80f))
     }
@@ -112,10 +118,13 @@ fun SidebarCustomizationSettingsPage(
         collapsedByDefault = false,
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = paddingValues.calculateStartPadding(layoutDirection) + 16.dp,
+                top = paddingValues.calculateTopPadding() + 4.dp,
+                end = paddingValues.calculateEndPadding(layoutDirection) + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 32.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "slider_section") {
@@ -124,8 +133,7 @@ fun SidebarCustomizationSettingsPage(
                 ) {
                     item {
                         SliderPreference(
-                            title = stringResource(R.string.sidebar_transparency_value, transparency)
-                                .substringBefore(":"),
+                            title = stringResource(R.string.sidebar_transparency_title),
                             summary = "",
                             value = transparency,
                             onValueChange = { next ->
@@ -146,14 +154,16 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 0.10f..1.00f,
                             steps = 17,
-                            displayValue = "${(transparency * 100).roundToInt()}%",
+                            displayValue = stringResource(
+                                R.string.sidebar_unit_percent,
+                                (transparency * 100).roundToInt(),
+                            ),
                         )
                     }
 
                     item {
                         SliderPreference(
-                            title = stringResource(R.string.sidebar_length_value, sliderLength)
-                                .substringBefore(":"),
+                            title = stringResource(R.string.sidebar_length_title),
                             summary = "",
                             value = sliderLength.toFloat(),
                             onValueChange = { next ->
@@ -174,14 +184,16 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 100f..500f,
                             steps = 19,
-                            displayValue = "$sliderLength px",
+                            displayValue = stringResource(
+                                R.string.sidebar_unit_dp,
+                                (sliderLength / density).roundToInt(),
+                            ),
                         )
                     }
 
                     item {
                         SliderPreference(
-                            title = stringResource(R.string.sidebar_width_value, sliderWidth)
-                                .substringBefore(":"),
+                            title = stringResource(R.string.sidebar_width_title),
                             summary = "",
                             value = sliderWidth.toFloat(),
                             onValueChange = { next ->
@@ -202,7 +214,10 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 20f..200f,
                             steps = 17,
-                            displayValue = "$sliderWidth px",
+                            displayValue = stringResource(
+                                R.string.sidebar_unit_dp,
+                                (sliderWidth / density).roundToInt(),
+                            ),
                         )
                     }
 
@@ -273,8 +288,7 @@ fun SidebarCustomizationSettingsPage(
 
                     item {
                         SliderPreference(
-                            title = stringResource(R.string.sidebar_icon_size_value, iconSize)
-                                .substringBefore(":"),
+                            title = stringResource(R.string.sidebar_icon_size_title),
                             summary = "",
                             value = iconSize.toFloat(),
                             onValueChange = { next ->
@@ -294,14 +308,13 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 30f..80f,
                             steps = 9,
-                            displayValue = "$iconSize dp",
+                            displayValue = stringResource(R.string.sidebar_unit_dp, iconSize),
                         )
                     }
 
                     item {
                         SliderPreference(
-                            title = stringResource(R.string.sidebar_icon_padding_value, iconPadding)
-                                .substringBefore(":"),
+                            title = stringResource(R.string.sidebar_icon_padding_title),
                             summary = stringResource(R.string.sidebar_icon_padding_summary),
                             value = iconPadding.toFloat(),
                             onValueChange = { next ->
@@ -321,17 +334,14 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 4f..20f,
                             steps = 15,
-                            displayValue = "$iconPadding dp",
+                            displayValue = stringResource(R.string.sidebar_unit_dp, iconPadding),
                         )
                     }
 
                     if (columnCount > 1) {
                         item {
                             SliderPreference(
-                                title = stringResource(
-                                    R.string.sidebar_column_spacing_value,
-                                    columnSpacing,
-                                ).substringBefore(":"),
+                                title = stringResource(R.string.sidebar_column_spacing_title),
                                 summary = stringResource(R.string.sidebar_column_spacing_summary),
                                 value = columnSpacing.toFloat(),
                                 onValueChange = { next ->
@@ -351,17 +361,14 @@ fun SidebarCustomizationSettingsPage(
                                 },
                                 valueRange = 1f..12f,
                                 steps = 10,
-                                displayValue = "$columnSpacing dp",
+                                displayValue = stringResource(R.string.sidebar_unit_dp, columnSpacing),
                             )
                         }
                     }
 
                     item {
                         SliderPreference(
-                            title = stringResource(
-                                R.string.sidebar_corner_radius_value,
-                                cornerRadius.roundToInt(),
-                            ).substringBefore(":"),
+                            title = stringResource(R.string.sidebar_corner_radius_title),
                             summary = "",
                             value = cornerRadius,
                             onValueChange = { next ->
@@ -381,16 +388,16 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 0f..36f,
                             steps = 17,
-                            displayValue = "${cornerRadius.roundToInt()} dp",
+                            displayValue = stringResource(
+                                R.string.sidebar_unit_dp,
+                                cornerRadius.roundToInt(),
+                            ),
                         )
                     }
 
                     item {
                         SliderPreference(
-                            title = stringResource(
-                                R.string.sidebar_bg_transparency_value,
-                                backgroundTransparency,
-                            ).substringBefore(":"),
+                            title = stringResource(R.string.sidebar_bg_transparency_title),
                             summary = "",
                             value = backgroundTransparency,
                             onValueChange = { next ->
@@ -414,9 +421,8 @@ fun SidebarCustomizationSettingsPage(
                             },
                             valueRange = 0.10f..1.00f,
                             steps = 17,
-                            displayValue = String.format(
-                                Locale.US,
-                                "%d%%",
+                            displayValue = stringResource(
+                                R.string.sidebar_unit_percent,
                                 (backgroundTransparency * 100).roundToInt(),
                             ),
                         )

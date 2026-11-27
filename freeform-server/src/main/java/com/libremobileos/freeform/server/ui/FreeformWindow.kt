@@ -1,7 +1,9 @@
 package com.libremobileos.freeform.server.ui
 
 import android.annotation.SuppressLint
+import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.drawable.Drawable
 import android.graphics.PixelFormat
 import android.graphics.SurfaceTexture
@@ -67,6 +69,28 @@ class FreeformWindow(
     private var appPackageName: String = ""
     private var appIcon: Drawable? = null
     private var isInitialized = false
+    private var lastUiMode: Int = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+    private var packageNameViewRef: TextView? = null
+    private var pinIconView: ImageView? = null
+    private var maximizeIconView: ImageView? = null
+    private var closeIconView: ImageView? = null
+    private var arrowBackPillView: View? = null
+    private var arrowBackIconView: ImageView? = null
+    private var veilIconContainerView: View? = null
+
+    private val componentCallbacks = object : ComponentCallbacks {
+        override fun onConfigurationChanged(newConfig: Configuration) {
+            val newUiMode = newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            lastUiMode = newUiMode
+            handler.post {
+                if (isInitialized) {
+                    applyChromeTheme(newConfig)
+                }
+            }
+        }
+
+        override fun onLowMemory() = Unit
+    }
 
     private val rotationWatcher = object : IRotationWatcher.Stub() {
         override fun onRotationChanged(rotation: Int) {
@@ -212,7 +236,7 @@ class FreeformWindow(
             flags = if (hasSecureWindowOnScreen) {
                 flags or WindowManager.LayoutParams.FLAG_SECURE
             } else {
-                flags xor WindowManager.LayoutParams.FLAG_SECURE
+                flags and WindowManager.LayoutParams.FLAG_SECURE.inv()
             }
         }
         handler.post {
@@ -314,6 +338,13 @@ class FreeformWindow(
             destroy("addFreeformView:left&leftScale&rightScale view is null")
             return false
         }
+        packageNameViewRef = packageNameView
+        pinIconView = tmpFreeformLayout.findViewWithTag("pinIcon")
+        maximizeIconView = tmpFreeformLayout.findViewWithTag("maximizeIcon")
+        closeIconView = tmpFreeformLayout.findViewWithTag("closeIcon")
+        arrowBackPillView = tmpFreeformLayout.findViewWithTag("arrowBackPill")
+        arrowBackIconView = tmpFreeformLayout.findViewWithTag("arrowBackIcon")
+        veilIconContainerView = tmpFreeformLayout.findViewWithTag("veilIconContainer")
         veilAppIconView.setImageDrawable(appIcon)
         appIconView.setImageDrawable(appIcon)
         packageNameView.text = appPackageName
@@ -353,6 +384,7 @@ class FreeformWindow(
             windowManager.addView(freeformLayout, windowParams)
             SystemServiceHolder.windowManager.watchRotation(rotationWatcher, Display.DEFAULT_DISPLAY)
             windowManagerInt.registerDisplaySecureContentListener(this)
+            context.registerComponentCallbacks(componentCallbacks)
         }.onFailure {
             Slog.e(TAG, "addView failed: $it")
             return false
@@ -413,7 +445,7 @@ class FreeformWindow(
         windowParams.apply {
             x = (defaultDisplayWidth / 2 - freeformConfig.hangUpWidth / 2)
             y = -(defaultDisplayHeight / 2 - freeformConfig.hangUpHeight / 2)
-            flags = flags xor WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+            flags = flags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM.inv()
         }
         rootView.layoutParams = rootView.layoutParams.apply {
             width = freeformConfig.hangUpWidth
@@ -516,6 +548,7 @@ class FreeformWindow(
         LMOFreeformServiceHolder.releaseFreeform(this)
         FreeformWindowManager.removeWindow(getFreeformId())
         windowManagerInt.unregisterDisplaySecureContentListener(this)
+        runCatching { context.unregisterComponentCallbacks(componentCallbacks) }
         
         freeformTaskStackListener?.taskId?.let {
             if (it != -1 && shouldRemoveTask) {
@@ -561,6 +594,41 @@ class FreeformWindow(
         dlog(TAG, "Orientation-aware positioning: $mode, windowX=${windowParams.x}, windowY=${windowParams.y}, screenSize=${defaultDisplayWidth}x${defaultDisplayHeight}")
     }
     
+    private fun applyChromeTheme(configuration: Configuration) {
+        val layout = freeformLayout ?: return
+        resourceHolder.refreshContext(configuration)
+
+        resourceHolder.getColor("color_surface")?.let { surfaceColor ->
+            runCatching {
+                layout.javaClass
+                    .getMethod("setCardBackgroundColor", Int::class.javaPrimitiveType)
+                    .invoke(layout, surfaceColor)
+            }
+        }
+        resourceHolder.getDrawable("bg_freeform_frame_border")?.let { layout.foreground = it }
+        resourceHolder.getDrawable("color_background")?.let { bg ->
+            topBarView?.background = bg
+        }
+        resourceHolder.getDrawable("color_background")?.let { bg ->
+            bottomBarView?.background = bg
+        }
+        resourceHolder.getColor("color_veil_surface")?.let { veilView?.setBackgroundColor(it) }
+        resourceHolder.getDrawable("bg_veil_icon_container")?.let { veilIconContainerView?.background = it }
+        resourceHolder.getColor("color_text_secondary")?.let { packageNameViewRef?.setTextColor(it) }
+        resourceHolder.getDrawable("bg_drag_handle_pill")?.let { topDragHandleView?.background = it }
+        resourceHolder.getDrawable("bg_window_btn_pill")?.let { pinIconView?.background = it }
+        resourceHolder.getDrawable("ic_pin")?.let { pinIconView?.setImageDrawable(it) }
+        resourceHolder.getDrawable("bg_window_btn_pill")?.let { maximizeIconView?.background = it }
+        resourceHolder.getDrawable("ic_maximize")?.let { maximizeIconView?.setImageDrawable(it) }
+        resourceHolder.getDrawable("bg_window_btn_close_pill")?.let { closeIconView?.background = it }
+        resourceHolder.getDrawable("ic_minimize")?.let { closeIconView?.setImageDrawable(it) }
+        resourceHolder.getDrawable("bg_bottom_back_pill")?.let { arrowBackPillView?.background = it }
+        resourceHolder.getDrawable("ic_arrow_back")?.let { arrowBackIconView?.setImageDrawable(it) }
+        resourceHolder.getDrawable("bar_corners_bg")?.let { leftScaleIndicatorView?.background = it }
+        resourceHolder.getDrawable("bar_corners_bg")?.let { rightScaleIndicatorView?.background = it }
+        layout.invalidate()
+    }
+
     private fun setDefaultPosition() {
         // Use the same left side positioning as default
         setSidebarAwarePosition()

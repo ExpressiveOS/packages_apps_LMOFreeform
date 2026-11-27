@@ -14,6 +14,7 @@ import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Handler
+import android.os.Looper
 import android.os.IBinder
 import android.os.ServiceManager
 import android.os.UserHandle
@@ -48,11 +49,13 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
     private var screenWidth = 0
     private var screenHeight = 0
     private val layoutParams = LayoutParams()
-    private val handler = Handler()
+    private val handler = Handler(Looper.getMainLooper())
     private val sideLineView by lazy {
         val gestureManager = MGestureManager(this@SidebarService, GestureListener(this@SidebarService))
         View(this).apply {
             background = AppCompatResources.getDrawable(this@SidebarService, R.drawable.ic_line)
+            contentDescription = getString(R.string.sidebar_open_description)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             setOnTouchListener { _, event ->
                 gestureManager.onTouchEvent(event)
                 true
@@ -179,6 +182,12 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
+        // Always refresh edge-handle drawable so Light/Dark/Black/Monet changes apply live
+        if (serviceStarted) {
+            sideLineView.background = AppCompatResources.getDrawable(this@SidebarService, R.drawable.ic_line)
+            sideLineView.contentDescription = getString(R.string.sidebar_open_description)
+            sideLineView.invalidate()
+        }
         val newWidth = resources.displayMetrics.widthPixels
         val newHeight = resources.displayMetrics.heightPixels
         if (newWidth == screenWidth && newHeight == screenHeight) {
@@ -236,7 +245,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
             }
             SLIDER_TRANSPARENCY -> {
                 if (isShowingSideline) {
-                    val transparency = sharedPrefs.getFloat(SLIDER_TRANSPARENCY, 1.0f)
+                    val transparency = sharedPrefs.getFloat(SLIDER_TRANSPARENCY, 0.80f)
                     sideLineView.alpha = transparency
                 }
             }
@@ -382,7 +391,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
             windowAnimations = android.R.style.Animation_Dialog
         }
 
-        val transparency = sharedPrefs.getFloat(SLIDER_TRANSPARENCY, 1.0f)
+        val transparency = sharedPrefs.getFloat(SLIDER_TRANSPARENCY, 0.80f)
         sideLineView.alpha = transparency
 
         val currentWidth = getSliderWidth()

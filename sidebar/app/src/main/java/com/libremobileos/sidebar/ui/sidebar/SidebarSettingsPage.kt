@@ -6,9 +6,13 @@
 
 package com.libremobileos.sidebar.ui.sidebar
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,20 +24,18 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ViewSidebar
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.android.axion.compose.expressive.rememberExpressiveHaptics
@@ -45,6 +47,7 @@ import com.android.axion.compose.preferences.SwitchPreference
 import com.android.axion.compose.preferences.preferencePosition
 import com.android.axion.compose.scaffold.AxionScaffold
 import com.libremobileos.sidebar.R
+import com.libremobileos.sidebar.app.SidebarApplication
 import com.libremobileos.sidebar.bean.SidebarAppInfo
 import com.libremobileos.sidebar.service.SidebarMonitorService
 
@@ -55,14 +58,31 @@ fun SidebarSettingsPage(
     onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val layoutDirection = LocalLayoutDirection.current
     val haptics = rememberExpressiveHaptics()
-    var mainChecked by rememberSaveable { mutableStateOf(viewModel.getSidebarEnabled()) }
-    var autoEnableChecked by rememberSaveable {
-        mutableStateOf(viewModel.getAutoEnableSelectedAppsEnabled())
+    val sharedPrefs = remember(context) {
+        context.applicationContext.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
     }
-    var predictedChecked by rememberSaveable {
-        mutableStateOf(viewModel.getPredictedAppsEnabled())
+
+    var mainChecked by remember { mutableStateOf(viewModel.getSidebarEnabled()) }
+    var autoEnableChecked by remember { mutableStateOf(viewModel.getAutoEnableSelectedAppsEnabled()) }
+    var predictedChecked by remember { mutableStateOf(viewModel.getPredictedAppsEnabled()) }
+
+    DisposableEffect(sharedPrefs, viewModel) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            mainChecked = viewModel.getSidebarEnabled()
+            autoEnableChecked = viewModel.getAutoEnableSelectedAppsEnabled()
+            predictedChecked = viewModel.getPredictedAppsEnabled()
+        }
+        sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
+        mainChecked = viewModel.getSidebarEnabled()
+        autoEnableChecked = viewModel.getAutoEnableSelectedAppsEnabled()
+        predictedChecked = viewModel.getPredictedAppsEnabled()
+        onDispose {
+            sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
     }
+
     val sidebarApps by viewModel.appListFlow.collectAsState()
 
     val openCustomization = {
@@ -74,27 +94,15 @@ fun SidebarSettingsPage(
         title = stringResource(R.string.sidebar_label),
         onBackClick = onBack,
         collapsedByDefault = false,
-        actions = {
-            FilledTonalIconButton(
-                onClick = openCustomization,
-                shape = IconButtonDefaults.smallRoundShape,
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Tune,
-                    contentDescription = stringResource(R.string.sidebar_customization_title),
-                )
-            }
-        },
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = paddingValues.calculateStartPadding(layoutDirection) + 16.dp,
+                top = paddingValues.calculateTopPadding() + 8.dp,
+                end = paddingValues.calculateEndPadding(layoutDirection) + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 24.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(PreferenceTokens.ItemSpacing),
         ) {
             item(key = "main_switch") {
@@ -229,7 +237,7 @@ fun SidebarAppListItem(
         com.android.axion.compose.preferences.PreferencePosition.Single,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    var appChecked by rememberSaveable(appInfo.packageName, appInfo.activityName, appInfo.userId) {
+    var appChecked by remember(appInfo.packageName, appInfo.activityName, appInfo.userId, appInfo.isSidebarApp) {
         mutableStateOf(appInfo.isSidebarApp)
     }
 

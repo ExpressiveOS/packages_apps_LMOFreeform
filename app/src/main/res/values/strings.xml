@@ -1,3 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LMOFreeform</string>
+    <string name="freeform_pin_window">Pin window</string>
+    <string name="freeform_maximize_window">Maximize window</string>
+    <string name="freeform_close_window">Close window</string>
+    <string name="freeform_navigate_back">Back</string>
+    <string name="freeform_resize_left">Resize window from bottom-left corner</string>
+    <string name="freeform_resize_right">Resize window from bottom-right corner</string>
+    <string name="freeform_drag_window">Move floating window</string>
 </resources>

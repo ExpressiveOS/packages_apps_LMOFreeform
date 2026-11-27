@@ -10,7 +10,9 @@
     <color name="color_primary">@android:color/system_primary_dark</color>
     <color name="color_primary_container">@android:color/system_primary_container_dark</color>
     <color name="color_secondary_container">@android:color/system_secondary_container_dark</color>
+    <color name="color_on_secondary_container">@android:color/system_on_secondary_container_dark</color>
     <color name="color_error_container">@android:color/system_error_container_dark</color>
+    <color name="color_on_error_container">@android:color/system_on_error_container_dark</color>
     <color name="color_outline_variant">@android:color/system_outline_variant_dark</color>
     <color name="color_ripple">#33FFFFFF</color>
 </resources>

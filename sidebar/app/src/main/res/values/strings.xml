@@ -1,18 +1,27 @@
-<resources>
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name">Sidebar</string>
 
-    <!--SettingsFragment-->
+    <!-- SettingsFragment -->
     <string name="enable_sideline">Use Sidebar</string>
     <string name="sidebar_label">Sidebar</string>
     <string name="sidebar_summary">Quickly open apps in a floating window</string>
+    <string name="sidebar_open_description">Open sidebar</string>
     <string name="sidebar_app_setting_label">Pinned apps</string>
     <string name="sidebar_settings_description">Open sidebar settings</string>
     <string name="sidebar_predicted_apps">Show app suggestions</string>
-    <string name="sidebar_predicted_apps_summary">Show upto 6 suggested apps below pinned apps</string>
+    <string name="sidebar_predicted_apps_summary">Show up to 6 suggested apps below pinned apps</string>
     <string name="sidebar_auto_enable_selected_apps">Auto enable sidebar for selected apps</string>
     <string name="sidebar_auto_enable_selected_apps_summary">Automatically show sidebar when configured apps are launched</string>
     <string name="sidebar_per_app_config">Configure apps</string>
     <string name="sidebar_per_app_config_summary">Select apps that should automatically enable sidebar</string>
+
+    <!-- Search & empty states -->
+    <string name="sidebar_search_apps_hint">Search apps</string>
+    <string name="sidebar_empty_apps_title">No apps available</string>
+    <string name="sidebar_empty_apps_summary">Install resizeable apps to launch them in floating windows.</string>
+    <string name="sidebar_empty_search_title">No matching apps</string>
+    <string name="sidebar_empty_search_summary">No apps match “<xliff:g id="query" example="Calculator">%1$s</xliff:g>”.</string>
 
     <!-- Sidebar customization -->
     <string name="sidebar_customization_title">Sidebar customization</string>
@@ -23,7 +32,19 @@
     <string name="sidebar_section_visual">Visual effects</string>
     <string name="sidebar_section_miscellaneous">Miscellaneous</string>
 
-    <!-- Slider settings -->
+    <!-- Dedicated titles (avoid fragile substringBefore(":")) -->
+    <string name="sidebar_transparency_title">Slider transparency</string>
+    <string name="sidebar_length_title">Slider length</string>
+    <string name="sidebar_width_title">Slider width</string>
+    <string name="sidebar_icon_size_title">Icon size</string>
+    <string name="sidebar_icon_padding_title">Icon padding</string>
+    <string name="sidebar_column_spacing_title">Column spacing</string>
+    <string name="sidebar_corner_radius_title">Corner radius</string>
+    <string name="sidebar_bg_transparency_title">Background transparency</string>
+    <string name="sidebar_unit_percent"><xliff:g id="percent" example="80">%1$d</xliff:g>%%</string>
+    <string name="sidebar_unit_dp"><xliff:g id="value" example="42">%1$d</xliff:g> dp</string>
+
+    <!-- Slider settings (retained for translation/backwards compat) -->
     <string name="sidebar_transparency_value">Slider transparency: %1$.2f</string>
     <string name="sidebar_length_value">Slider length: %1$d</string>
     <string name="sidebar_width_value">Slider width: %1$d</string>
@@ -48,7 +69,7 @@
     <!-- Visual effects -->
     <string name="sidebar_drop_shadow_title">Drop shadow</string>
     <string name="sidebar_drop_shadow_summary">Add shadow effect to sidebar</string>
-    
+
     <!-- Miscellaneous -->
     <string name="sidebar_tap_to_open_title">Open drawer on tap</string>
     <string name="sidebar_tap_to_open_summary">Open the sidebar drawer when the slider is tapped</string>

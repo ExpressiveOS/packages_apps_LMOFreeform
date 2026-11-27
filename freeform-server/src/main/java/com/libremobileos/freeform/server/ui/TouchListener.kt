@@ -171,15 +171,15 @@ class ScaleTouchListener(
                 veilView.visibility = View.VISIBLE
             }
             MotionEvent.ACTION_MOVE -> {
+                val density = window.context.resources.displayMetrics.density
+                val minSizePx = (200f * density).roundToInt()
+                val maxWidthPx = max(minSizePx, window.defaultDisplayWidth)
+                val maxHeightPx = max(minSizePx, (window.defaultDisplayHeight * 0.9f).roundToInt())
                 rootView.layoutParams = rootView.layoutParams.apply {
                     val xDelta = if (isRight) (event.rawX - startX) else (startX - event.rawX)
                     val yDelta = event.rawY - startY
-                    width = max(25, (rootView.width + xDelta).roundToInt())
-                    height = max(25, (rootView.height + yDelta).roundToInt())
-                    if (width > height) {
-                        if (xDelta < 0) width = height
-                        else height = width
-                    }
+                    width = (rootView.width + xDelta).roundToInt().coerceIn(minSizePx, maxWidthPx)
+                    height = (rootView.height + yDelta).roundToInt().coerceIn(minSizePx, maxHeightPx)
                 }
                 startX = event.rawX
                 startY = event.rawY

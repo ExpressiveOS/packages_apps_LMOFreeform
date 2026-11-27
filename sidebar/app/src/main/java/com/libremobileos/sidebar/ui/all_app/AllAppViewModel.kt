@@ -42,6 +42,9 @@ class AllAppViewModel(private val application: Application): AndroidViewModel(ap
     val appListFlow: StateFlow<List<AppInfo>>
         get() = _appList.asStateFlow()
     private val _appList = MutableStateFlow<List<AppInfo>>(emptyList())
+    private val _isLoading = MutableStateFlow(true)
+    val isLoadingFlow: StateFlow<Boolean>
+        get() = _isLoading.asStateFlow()
     private val appComparator = AppComparator()
 
     private val appContext = application.applicationContext
@@ -62,6 +65,7 @@ class AllAppViewModel(private val application: Application): AndroidViewModel(ap
             viewModelScope.launch(Dispatchers.IO) {
                 allAppList.remove(allAppList.getInfo(packageName, user))
                 _appList.value = allAppList.toList()
+            _isLoading.value = false
             }
         }
 
@@ -96,6 +100,7 @@ class AllAppViewModel(private val application: Application): AndroidViewModel(ap
                         )
                         Collections.sort(allAppList, appComparator)
                         _appList.value = allAppList.toList()
+            _isLoading.value = false
                     }
                 }
             }
@@ -172,6 +177,7 @@ class AllAppViewModel(private val application: Application): AndroidViewModel(ap
             }
             Collections.sort(allAppList, appComparator)
             _appList.value = allAppList.toList()
+            _isLoading.value = false
         }
     }
 

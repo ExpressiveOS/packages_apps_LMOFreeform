@@ -20,23 +20,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Clear
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,13 +44,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
+import com.android.axion.compose.expressive.ExpressiveEmptyState
+import com.android.axion.compose.expressive.ExpressiveSearchBar
+import com.android.axion.compose.expressive.ExpressiveWavyCircularProgress
 import com.android.axion.compose.preferences.PreferencePosition
 import com.android.axion.compose.preferences.PreferenceTokens
 import com.android.axion.compose.preferences.SwitchPreference
@@ -93,13 +96,19 @@ fun SidebarPerAppConfigContent(onBack: () -> Unit = {}) {
 @Composable
 fun SidebarPerAppConfigScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
-    val sharedPrefs = context.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
+    val layoutDirection = LocalLayoutDirection.current
+    val sharedPrefs = remember(context) {
+        context.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
+    }
 
     var apps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         apps = loadInstalledApps(context)
+        isLoading = false
     }
 
     val filteredApps = remember(apps, searchQuery) {
@@ -118,68 +127,92 @@ fun SidebarPerAppConfigScreen(onBack: () -> Unit = {}) {
         onBackClick = onBack,
         collapsedByDefault = false,
     ) { paddingValues ->
+        val startPad = paddingValues.calculateStartPadding(layoutDirection) + 16.dp
+        val endPad = paddingValues.calculateEndPadding(layoutDirection) + 16.dp
+        val bottomPad = paddingValues.calculateBottomPadding() + 28.dp
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
+                .padding(top = paddingValues.calculateTopPadding())
+                .imePadding(),
         ) {
             Text(
                 text = stringResource(R.string.sidebar_auto_enable_selected_apps_summary),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                modifier = Modifier.padding(
+                    start = startPad + 4.dp,
+                    end = endPad + 4.dp,
+                    top = 6.dp,
+                    bottom = 6.dp,
+                ),
             )
 
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text(stringResource(android.R.string.search_go)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = null,
-                    )
-                },
-                trailingIcon = if (searchQuery.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Rounded.Clear,
-                                contentDescription = null,
+            ExpressiveSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                placeholder = stringResource(R.string.sidebar_search_apps_hint),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = startPad, end = endPad, top = 4.dp, bottom = 8.dp),
+            )
+
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = bottomPad),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ExpressiveWavyCircularProgress()
+                    }
+                }
+                filteredApps.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = bottomPad),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val isSearch = searchQuery.isNotBlank()
+                        ExpressiveEmptyState(
+                            icon = if (isSearch) Icons.Rounded.SearchOff else Icons.Rounded.Apps,
+                            title = stringResource(
+                                if (isSearch) R.string.sidebar_empty_search_title
+                                else R.string.sidebar_empty_apps_title
+                            ),
+                            description = if (isSearch) {
+                                stringResource(R.string.sidebar_empty_search_summary, searchQuery.trim())
+                            } else {
+                                stringResource(R.string.sidebar_empty_apps_summary)
+                            },
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = startPad,
+                            top = 6.dp,
+                            end = endPad,
+                            bottom = bottomPad,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(PreferenceTokens.ItemSpacing),
+                    ) {
+                        itemsIndexed(
+                            items = filteredApps,
+                            key = { _, app -> app.packageName },
+                        ) { index, appInfo ->
+                            SidebarPerAppListItem(
+                                appInfo = appInfo,
+                                sharedPrefs = sharedPrefs,
+                                position = preferencePosition(index, filteredApps.size),
                             )
                         }
                     }
-                } else {
-                    null
-                },
-                singleLine = true,
-                shape = CircleShape,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.Transparent,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-            )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 6.dp, bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(PreferenceTokens.ItemSpacing),
-            ) {
-                itemsIndexed(
-                    items = filteredApps,
-                    key = { _, app -> app.packageName },
-                ) { index, appInfo ->
-                    SidebarPerAppListItem(
-                        appInfo = appInfo,
-                        sharedPrefs = sharedPrefs,
-                        position = preferencePosition(index, filteredApps.size),
-                    )
                 }
             }
         }

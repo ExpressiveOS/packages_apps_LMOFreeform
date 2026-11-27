@@ -1,6 +1,7 @@
 package com.libremobileos.sidebar.service
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +28,12 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +51,8 @@ import com.libremobileos.sidebar.R
 import com.libremobileos.sidebar.app.SidebarApplication
 import com.libremobileos.sidebar.bean.AppInfo
 
+private const val MIN_RAIL_TARGET_DP = 48
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SidebarComposeView(
@@ -55,18 +62,45 @@ fun SidebarComposeView(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val sharedPrefs = context.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
+    val sharedPrefs = remember(context) {
+        context.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
+    }
 
-    val columnCount = sharedPrefs.getInt(SidebarService.SIDEBAR_COLUMNS, 1).coerceIn(1, 3)
-    val iconSize = sharedPrefs.getInt(SidebarService.SIDEBAR_ICON_SIZE, 42).coerceIn(28, 80)
-    val iconPadding = sharedPrefs.getInt(SidebarService.SIDEBAR_ICON_PADDING, 6).coerceIn(2, 20)
-    val columnSpacing = sharedPrefs.getInt(SidebarService.SIDEBAR_COLUMN_SPACING, 4).coerceIn(1, 16)
-    val cornerRadius = sharedPrefs.getFloat(SidebarService.SIDEBAR_CORNER_RADIUS, 28f).coerceIn(0f, 36f)
-    val backgroundTransparency = sharedPrefs.getFloat(
-        SidebarService.SIDEBAR_BACKGROUND_TRANSPARENCY,
-        0.84f,
-    ).coerceIn(0.1f, 1.0f)
-    val showShadow = sharedPrefs.getBoolean(SidebarService.SIDEBAR_SHOW_SHADOW, true)
+    var prefsRevision by remember { mutableIntStateOf(0) }
+    DisposableEffect(sharedPrefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            prefsRevision++
+        }
+        sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            sharedPrefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    val columnCount = remember(prefsRevision) {
+        sharedPrefs.getInt(SidebarService.SIDEBAR_COLUMNS, 1).coerceIn(1, 3)
+    }
+    val iconSize = remember(prefsRevision) {
+        sharedPrefs.getInt(SidebarService.SIDEBAR_ICON_SIZE, 42).coerceIn(28, 80)
+    }
+    val iconPadding = remember(prefsRevision) {
+        sharedPrefs.getInt(SidebarService.SIDEBAR_ICON_PADDING, 6).coerceIn(2, 20)
+    }
+    val columnSpacing = remember(prefsRevision) {
+        sharedPrefs.getInt(SidebarService.SIDEBAR_COLUMN_SPACING, 4).coerceIn(1, 16)
+    }
+    val cornerRadius = remember(prefsRevision) {
+        sharedPrefs.getFloat(SidebarService.SIDEBAR_CORNER_RADIUS, 28f).coerceIn(0f, 36f)
+    }
+    val backgroundTransparency = remember(prefsRevision) {
+        sharedPrefs.getFloat(
+            SidebarService.SIDEBAR_BACKGROUND_TRANSPARENCY,
+            0.84f,
+        ).coerceIn(0.1f, 1.0f)
+    }
+    val showShadow = remember(prefsRevision) {
+        sharedPrefs.getBoolean(SidebarService.SIDEBAR_SHOW_SHADOW, true)
+    }
 
     val sidebarAppList by viewModel.sidebarAppListFlow.collectAsState()
     val railShape = RoundedCornerShape(cornerRadius.dp)
@@ -143,7 +177,7 @@ fun SidebarComposeView(
                 addAll(sidebarAppList.map { SidebarItem.App(it) })
                 add(SidebarItem.Settings)
             }
-            val tileSlotDp = iconSize + iconPadding * 2
+            val tileSlotDp = (iconSize + iconPadding * 2).coerceAtLeast(MIN_RAIL_TARGET_DP)
             val gridWidth = (
                 tileSlotDp * columnCount +
                     columnSpacing * (columnCount - 1) +
@@ -205,7 +239,7 @@ private fun SidebarAllAppsPill(
     launchApp: (AppInfo) -> Unit,
 ) {
     val haptics = rememberExpressiveHaptics()
-    val containerSize = (iconSize + iconPadding * 2).dp
+    val containerSize = (iconSize + iconPadding * 2).coerceAtLeast(MIN_RAIL_TARGET_DP).dp
 
     ExpressiveMorphContainer(
         active = false,
@@ -236,7 +270,7 @@ private fun SidebarAppItem(
     launchApp: (AppInfo) -> Unit,
 ) {
     val haptics = rememberExpressiveHaptics()
-    val containerSize = (iconSize + iconPadding * 2).dp
+    val containerSize = (iconSize + iconPadding * 2).coerceAtLeast(MIN_RAIL_TARGET_DP).dp
 
     ExpressiveMorphContainer(
         active = false,
@@ -266,7 +300,7 @@ private fun SidebarSettingsPill(
     closeSidebar: () -> Unit,
 ) {
     val haptics = rememberExpressiveHaptics()
-    val containerSize = (iconSize + iconPadding * 2).dp
+    val containerSize = (iconSize + iconPadding * 2).coerceAtLeast(MIN_RAIL_TARGET_DP).dp
 
     ExpressiveMorphContainer(
         active = false,
